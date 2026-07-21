@@ -1,0 +1,24 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# CMake
+out/
+build/
+cmake-build-*/
+
+# Build results
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.lib
+*.dll
+
+# vcpkg local packages
+vcpkg_installed/
+
+# OS
+Thumbs.db
+.DS_Store
