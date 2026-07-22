@@ -9,9 +9,10 @@ SensorMessage::SensorMessage(
     double distance
 )
     : deviceId_(std::move(deviceId)),
-    sequence_(sequence),
-    distance_(distance)
+      sequence_(sequence),
+      distance_(distance)
 {
+
 }
 
 void SensorMessage::print() const
@@ -19,4 +20,13 @@ void SensorMessage::print() const
     std::cout << "deviceId: " << deviceId_ << '\n';
     std::cout << "sequence: " << sequence_ << '\n';
     std::cout << "distance: " << distance_ << " cm\n";
+}
+
+nlohmann::json SensorMessage::toJson() const
+{
+    return {
+        {"deviceId", deviceId_},
+        {"sequence", sequence_},
+        {"distance", distance_}
+    };
 }

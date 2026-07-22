@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <nlohmann/json.hpp>
 
 class SensorMessage
 {
@@ -14,6 +15,7 @@ public:
 
 	void print() const;
 
+	nlohmann::json toJson() const;
 
 private:
 	std::string deviceId_;

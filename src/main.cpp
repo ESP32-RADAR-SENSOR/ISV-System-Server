@@ -14,5 +14,8 @@ int main()
 
     message.print();
 
+    nlohmann::json jsonMessage = message.toJson();
+    std::cout << "\n=== JSON Message ===\n";
+    std::cout << jsonMessage.dump(4) << "\n";
     return 0;
 }
