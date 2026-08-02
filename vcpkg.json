@@ -2,7 +2,8 @@
   "name": "isv-system",
   "version-string": "0.1.0",
   "dependencies": [
-    "nlohmann-json"
+    "nlohmann-json",
+    "boost-asio"
   ],
   "builtin-baseline": "82b6bc886d7b0f8342e34babc2e0b8943f79b0e1"
 }
