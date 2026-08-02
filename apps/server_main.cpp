@@ -10,6 +10,12 @@ bool validateSensorMessage(
     std::string& errorMessage
 )
 {
+    // 값의 존재 검사
+    if (!message.contains("type"))
+    {
+        errorMessage = "Missing field: type";
+        return false;
+    }
     if (!message.is_object())
     {
         errorMessage = "JSON root must be an object.";
@@ -28,9 +34,23 @@ bool validateSensorMessage(
         return false;
     }
 
-    if (!message.contains("distance"))
+    if (!message.contains("distanceCm"))
     {
-        errorMessage = "Missing field: distance";
+        errorMessage = "Missing field: distanceCm";
+        return false;
+    }
+
+    if (!message.contains("timestamp"))
+    {
+        errorMessage = "Missing field: timestamp";
+        return false;
+    }
+
+    // 타입 검사
+
+    if (!message.at("type").is_string())
+    {
+        errorMessage = "type must be a string.";
         return false;
     }
 
@@ -46,19 +66,36 @@ bool validateSensorMessage(
         return false;
     }
 
-    if (!message.at("distance").is_number())
+    if (!message.at("distanceCm").is_number())
     {
-        errorMessage = "distance must be a number.";
+        errorMessage = "distanceCm must be a number.";
         return false;
     }
 
-    const double distance =
-        message.at("distance").get<double>();
+    if (!message.at("timestamp").is_string())
+    {
+        errorMessage = "timestamp must be a string.";
+        return false;
+    }
 
-    if (distance < 0.0 || distance > 2000.0)
+    // 메시지 종류 겁사
+    const std::string type =
+        message.at("type").get<std::string>();
+
+    if (type != "distance")
+    {
+        errorMessage = "Unsupported message type: " + type;
+        return false;
+    }
+
+    // 거리 범위
+    const double distanceCm =
+        message.at("distanceCm").get<double>();
+
+    if (distanceCm < 0.0 || distanceCm > 2000.0)
     {
         errorMessage =
-            "distance must be between 0 and 2000 cm.";
+            "distanceCm must be between 0 and 2000.";
 
         return false;
     }
@@ -87,6 +124,8 @@ int main()
         // Client의 접속을 기다렸다가, 접속이 들어오면
         // acceptor가 연결된 소켓을 socket 에 담기
         acceptor.accept(socket);
+
+
         // socket은 특정 client와 연결되었고, read/write 가능해짐
         std::cout << "Client connected.\n";
 
@@ -125,19 +164,28 @@ int main()
             return 1;
         }
 
+        const std::string type =
+            parsedMessage.at("type").get<std::string>();
 
         const std::string deviceId =
             parsedMessage.at("deviceId").get<std::string>();
+
         const std::uint64_t sequence =
             parsedMessage.at("sequence").get<std::uint64_t>();
-        const double distance =
-            parsedMessage.at("distance").get<double>();
+
+        const double distanceCm =
+            parsedMessage.at("distanceCm").get<double>();
+
+        const std::string timestamp =
+            parsedMessage.at("timestamp").get<std::string>();
+
 
         std::cout << "\n=== Parsed Sensor Data ===\n";
+        std::cout << "type: " << type << '\n';
         std::cout << "deviceId: " << deviceId << '\n';
         std::cout << "sequence: " << sequence << '\n';
-        std::cout << "distance: " << distance << " cm\n";
-
+        std::cout << "distanceCm: " << distanceCm << " cm\n";
+        std::cout << "timestamp: " << timestamp << '\n';
     }
     catch (const std::exception& exception)
     {
