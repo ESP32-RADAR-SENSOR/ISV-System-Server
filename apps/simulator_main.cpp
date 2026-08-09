@@ -8,7 +8,7 @@
 #include <string>
 #include <thread>
 
-int main()
+int main(int argc, char* argv[])
 {
 
     try
@@ -28,6 +28,16 @@ int main()
 
         //const std::string serializedMessage =
         //    jsonMessage.dump() + '\n';
+
+
+        std::string deviceId = "SENSOR-A";
+
+        if (argc >= 2)
+        {
+            deviceId = argv[1];
+        }
+
+        std::cout << "Device ID argument: " << deviceId << '\n';
 
         boost::asio::io_context ioContext;
 
@@ -62,7 +72,7 @@ int main()
         {
             SensorMessage message(
                 "distance",
-                "SENSOR-A",
+                deviceId,
                 sequence,
                 distanceCm,
                 "2026-08-09T12:34:00+09:00"
