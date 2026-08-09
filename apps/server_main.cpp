@@ -105,6 +105,7 @@ bool validateSensorMessage(
 
 int main()
 {
+
     try
     {
         using boost::asio::ip::tcp;
@@ -132,6 +133,57 @@ int main()
         // 수신 버퍼 생성
         boost::asio::streambuf receiveBuffer;
 
+        while (true)
+        {
+            boost::asio::read_until(
+                socket,
+                receiveBuffer,
+                '\n'
+            );
+
+            std::istream inputStream(&receiveBuffer);
+
+            std::string receivedMessage;
+            std::getline(inputStream, receivedMessage);
+
+            const nlohmann::json parsedMessage =
+                nlohmann::json::parse(receivedMessage);
+
+            std::string errorMessage;
+
+            if (!validateSensorMessage(
+                parsedMessage,
+                errorMessage
+            ))
+            {
+                std::cerr
+                    << "Validation failed: "
+                    << errorMessage
+                    << '\n';
+
+                continue;
+            }
+
+            const std::string deviceId =
+                parsedMessage.at("deviceId")
+                .get<std::string>();
+
+            const std::uint64_t sequence =
+                parsedMessage.at("sequence")
+                .get<std::uint64_t>();
+
+            const double distanceCm =
+                parsedMessage.at("distanceCm")
+                .get<double>();
+
+            std::cout
+                << "[" << deviceId << "] "
+                << "seq=" << sequence
+                << ", distance=" << distanceCm
+                << " cm\n";
+        }
+
+        /*
         // 줄바꿈까지 수신
         boost::asio::read_until(
             socket,
@@ -186,6 +238,7 @@ int main()
         std::cout << "sequence: " << sequence << '\n';
         std::cout << "distanceCm: " << distanceCm << " cm\n";
         std::cout << "timestamp: " << timestamp << '\n';
+        */
     }
     catch (const std::exception& exception)
     {
@@ -196,8 +249,6 @@ int main()
     }
 
 
-    const nlohamn::json paredMessage =
-        nolohamn::json::parse(receivedMessage);
 
 
     return 0;
