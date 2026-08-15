@@ -7,33 +7,33 @@ SensorMessage::SensorMessage(
     std::string type,
     std::string deviceId,
     std::uint64_t sequence,
-    double distanceCm,
+    double distance,
     std::string timestamp
 )
     : type_(std::move(type)),
     deviceId_(std::move(deviceId)),
     sequence_(sequence),
-    distanceCm_(distanceCm),
+    distance_(distance),
     timestamp_(std::move(timestamp))
 {
 }
 
 void SensorMessage::print() const
-{   
-    std::cout << "type: " << type_ << "\n";
+{
+    std::cout << "type: " << type_ << '\n';
     std::cout << "deviceId: " << deviceId_ << '\n';
     std::cout << "sequence: " << sequence_ << '\n';
-    std::cout << "distanceCm: " << distanceCm_ << " cm\n";
-    std::cout << "timestamp: " << timestamp_ << "\n";
+    std::cout << "distance: " << distance_ << " m\n";
+    std::cout << "timestamp: " << timestamp_ << '\n';
 }
 
 nlohmann::json SensorMessage::toJson() const
 {
     return {
-        {"type",type_},
+        {"type", type_},
         {"deviceId", deviceId_},
         {"sequence", sequence_},
-        {"distanceCm", distanceCm_},
-        {"timestamp",timestamp_}
+        {"distance", distance_},
+        {"timestamp", timestamp_}
     };
 }

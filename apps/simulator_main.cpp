@@ -10,25 +10,9 @@
 
 int main(int argc, char* argv[])
 {
-
     try
     {
         using boost::asio::ip::tcp;
-
-        //SensorMessage message(
-        //    "distance",
-        //    "SENSOR-A",
-        //    1,
-        //    150.0,
-        //    "2026-08-02T13:54:00+09:00"
-        //);
-
-        //const nlohmann::json jsonMessage =
-        //    message.toJson();
-
-        //const std::string serializedMessage =
-        //    jsonMessage.dump() + '\n';
-
 
         std::string deviceId = "SENSOR-A";
 
@@ -55,18 +39,10 @@ int main(int argc, char* argv[])
 
         std::cout << "Connected.\n";
 
-
-
-        /*boost::asio::write(
-            socket,
-            boost::asio::buffer(serializedMessage)
-        );
-
-        std::cout << "\n=== Sent Message ===\n";
-        std::cout << serializedMessage;*/
-
         std::uint64_t sequence = 1;
-        double distanceCm = 150.0;
+
+        // ´ÜÀ§: meter
+        double distance = 1.5;
 
         while (true)
         {
@@ -74,14 +50,14 @@ int main(int argc, char* argv[])
                 "distance",
                 deviceId,
                 sequence,
-                distanceCm,
-                "2026-08-09T12:34:00+09:00"
+                distance,
+                "2026-08-15T12:30:00+09:00"
             );
 
             const std::string serializedMessage =
                 message.toJson().dump() + '\n';
 
-            std::cout << serializedMessage << "\n";
+            std::cout << serializedMessage;
 
             boost::asio::write(
                 socket,
@@ -92,11 +68,12 @@ int main(int argc, char* argv[])
                 << "Sent: seq="
                 << sequence
                 << ", distance="
-                << distanceCm
-                << '\n';
+                << distance
+                << " m\n";
 
             ++sequence;
-            distanceCm -= 2.0;
+
+            distance -= 0.02;
 
             std::this_thread::sleep_for(
                 std::chrono::seconds(1)
@@ -105,8 +82,10 @@ int main(int argc, char* argv[])
     }
     catch (const std::exception& exception)
     {
-        std::cerr << "Simulator error: "
-            << exception.what() << '\n';
+        std::cerr
+            << "Simulator error: "
+            << exception.what()
+            << '\n';
 
         return 1;
     }

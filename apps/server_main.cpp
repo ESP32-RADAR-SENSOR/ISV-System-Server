@@ -41,9 +41,9 @@ bool validateSensorMessage(
         return false;
     }
 
-    if (!message.contains("distanceCm"))
+    if (!message.contains("distance"))
     {
-        errorMessage = "Missing field: distanceCm";
+        errorMessage = "Missing field: distance";
         return false;
     }
 
@@ -73,9 +73,9 @@ bool validateSensorMessage(
         return false;
     }
 
-    if (!message.at("distanceCm").is_number())
+    if (!message.at("distance").is_number())
     {
-        errorMessage = "distanceCm must be a number.";
+        errorMessage = "distance must be a number.";
         return false;
     }
 
@@ -96,13 +96,13 @@ bool validateSensorMessage(
     }
 
     // 거리 범위
-    const double distanceCm =
-        message.at("distanceCm").get<double>();
+    const double distance =
+        message.at("distance").get<double>();
 
-    if (distanceCm < 0.0 || distanceCm > 2000.0)
+    if (distance < 0.0 || distance > 20.0)
     {
         errorMessage =
-            "distanceCm must be between 0 and 2000.";
+            "distance must be between 0 and 20 meters.";
 
         return false;
     }
@@ -155,15 +155,14 @@ void handleClient(tcp::socket socket)
                 parsedMessage.at("sequence")
                 .get<std::uint64_t>();
 
-            const double distanceCm =
-                parsedMessage.at("distanceCm")
-                .get<double>();
+            const double distance =
+                parsedMessage.at("distance").get<double>();
 
             std::cout
                 << "[" << deviceId << "] "
                 << "seq=" << sequence
-                << ", distance=" << distanceCm
-                << " cm\n";
+                << ", distance=" << distance
+                << " m\n";
         }
     }
     catch (const std::exception& exception)

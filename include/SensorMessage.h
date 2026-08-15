@@ -11,7 +11,7 @@ public:
         std::string type,
         std::string deviceId,
         std::uint64_t sequence,
-        double distanceCm,
+        double distance,
         std::string timestamp
     );
 
@@ -22,6 +22,6 @@ private:
     std::string type_;
     std::string deviceId_;
     std::uint64_t sequence_;
-    double distanceCm_;
+    double distance_;
     std::string timestamp_;
 };
