@@ -3,11 +3,18 @@
 
 #include <cstdint>
 #include <iostream>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
-
+#include <vector>
+#include <algorithm>
 
 using boost::asio::ip::tcp;
+
+// 현재 연결된 WPF 클라이언트들
+std::vector<std::shared_ptr<tcp::socket>> monitorClients;
+std::mutex monitorMutex;
 
 
 bool validateSensorMessage(
@@ -15,14 +22,12 @@ bool validateSensorMessage(
     std::string& errorMessage
 )
 {
-
     if (!message.is_object())
     {
         errorMessage = "JSON root must be an object.";
         return false;
     }
 
-    // 값의 존재 검사
     if (!message.contains("type"))
     {
         errorMessage = "Missing field: type";
@@ -52,8 +57,6 @@ bool validateSensorMessage(
         errorMessage = "Missing field: timestamp";
         return false;
     }
-
-    // 타입 검사
 
     if (!message.at("type").is_string())
     {
@@ -85,17 +88,16 @@ bool validateSensorMessage(
         return false;
     }
 
-    // 메시지 종류 겁사
     const std::string type =
         message.at("type").get<std::string>();
 
     if (type != "distance")
     {
-        errorMessage = "Unsupported message type: " + type;
+        errorMessage =
+            "Unsupported message type: " + type;
         return false;
     }
 
-    // 거리 범위
     const double distance =
         message.at("distance").get<double>();
 
@@ -103,17 +105,52 @@ bool validateSensorMessage(
     {
         errorMessage =
             "distance must be between 0 and 20 meters.";
-
         return false;
     }
 
     return true;
 }
 
-void handleClient(tcp::socket socket)
-{
 
-    try {
+// ===============================
+// WPF로 데이터 전달
+// ===============================
+void broadcastToMonitors(const std::string& message)
+{
+    std::lock_guard<std::mutex> lock(monitorMutex);
+
+    for (auto it = monitorClients.begin();
+        it != monitorClients.end();)
+    {
+        try
+        {
+            boost::asio::write(
+                **it,
+                boost::asio::buffer(message)
+            );
+
+            ++it;
+        }
+        catch (const std::exception& e)
+        {
+            std::cout
+                << "WPF disconnected: "
+                << e.what()
+                << '\n';
+
+            it = monitorClients.erase(it);
+        }
+    }
+}
+
+
+// ===============================
+// Sensor / Simulator 처리
+// ===============================
+void handleSensorClient(tcp::socket socket)
+{
+    try
+    {
         boost::asio::streambuf receiveBuffer;
 
         while (true)
@@ -127,17 +164,21 @@ void handleClient(tcp::socket socket)
             std::istream inputStream(&receiveBuffer);
 
             std::string receivedMessage;
-            std::getline(inputStream, receivedMessage);
+            std::getline(
+                inputStream,
+                receivedMessage
+            );
 
             const nlohmann::json parsedMessage =
-                nlohmann::json::parse(receivedMessage);
+                nlohmann::json::parse(
+                    receivedMessage
+                );
 
             std::string errorMessage;
 
             if (!validateSensorMessage(
                 parsedMessage,
-                errorMessage
-            ))
+                errorMessage))
             {
                 std::cerr
                     << "Validation failed: "
@@ -148,80 +189,146 @@ void handleClient(tcp::socket socket)
             }
 
             const std::string deviceId =
-                parsedMessage.at("deviceId")
+                parsedMessage
+                .at("deviceId")
                 .get<std::string>();
 
             const std::uint64_t sequence =
-                parsedMessage.at("sequence")
+                parsedMessage
+                .at("sequence")
                 .get<std::uint64_t>();
 
             const double distance =
-                parsedMessage.at("distance").get<double>();
+                parsedMessage
+                .at("distance")
+                .get<double>();
 
             std::cout
                 << "[" << deviceId << "] "
                 << "seq=" << sequence
-                << ", distance=" << distance
+                << ", distance="
+                << distance
                 << " m\n";
+
+            // ★ 핵심
+            // getline으로 \n이 제거되었으므로
+            // 다시 붙여서 WPF로 전달
+            broadcastToMonitors(
+                receivedMessage + '\n'
+            );
         }
     }
     catch (const std::exception& exception)
     {
         std::cout
-            << "Client disconnected: "
+            << "Sensor disconnected: "
             << exception.what()
             << '\n';
     }
 }
 
+
+// ===============================
+// WPF 연결 받기
+// ===============================
+void acceptMonitorClients(
+    boost::asio::io_context& ioContext,
+    tcp::acceptor& monitorAcceptor
+)
+{
+    while (true)
+    {
+        auto socket =
+            std::make_shared<tcp::socket>(
+                ioContext
+            );
+
+        monitorAcceptor.accept(*socket);
+
+        {
+            std::lock_guard<std::mutex>
+                lock(monitorMutex);
+
+            monitorClients.push_back(socket);
+        }
+
+        std::cout
+            << "WPF Monitor connected.\n";
+    }
+}
+
+
 int main()
 {
     try
     {
-        // 네트워크 작업 관리 객체 ioContext 생성
         boost::asio::io_context ioContext;
-        // ipv4 9000포트로 들어오는 acceptor 생성
-        tcp::acceptor acceptor(
+
+        // Simulator / ESP32용
+        tcp::acceptor sensorAcceptor(
             ioContext,
-            tcp::endpoint(tcp::v4(), 9000)
+            tcp::endpoint(
+                tcp::v4(),
+                9000
+            )
         );
 
-        std::cout << "=== ISV TCP Server ===\n";
-        std::cout << "Listening on 127.0.0.1:9000...\n";
+        // WPF용
+        tcp::acceptor monitorAcceptor(
+            ioContext,
+            tcp::endpoint(
+                tcp::v4(),
+                9001
+            )
+        );
+
+        std::cout
+            << "=== ISV TCP Server ===\n";
+
+        std::cout
+            << "Sensor port  : 9000\n";
+
+        std::cout
+            << "Monitor port : 9001\n";
 
 
+        // WPF 연결 전용 thread
+        std::thread monitorThread(
+            acceptMonitorClients,
+            std::ref(ioContext),
+            std::ref(monitorAcceptor)
+        );
+
+        monitorThread.detach();
 
 
-        while (true) {
-            // 통신용 소켓 객체 생성
+        // Sensor 연결
+        while (true)
+        {
             tcp::socket socket(ioContext);
-            // Client의 접속을 기다렸다가, 접속이 들어오면
-            // acceptor가 연결된 소켓을 socket 에 담기
-            acceptor.accept(socket);
 
-            //// socket은 특정 client와 연결되었고, read/write 가능해짐
-            std::cout << "Client connected.\n";
-            //// 수신 버퍼 생성
-            //boost::asio::streambuf receiveBuffer;
-            std::thread clientThread(
-                handleClient,
+            sensorAcceptor.accept(socket);
+
+            std::cout
+                << "Sensor connected.\n";
+
+            std::thread sensorThread(
+                handleSensorClient,
                 std::move(socket)
             );
 
-            clientThread.detach();
+            sensorThread.detach();
         }
-
     }
     catch (const std::exception& exception)
     {
-        std::cerr << "Server error: "
-            << exception.what() << '\n';
+        std::cerr
+            << "Server error: "
+            << exception.what()
+            << '\n';
 
         return 1;
     }
-
-
-
 
     return 0;
 }
